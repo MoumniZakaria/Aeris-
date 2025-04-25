@@ -18,7 +18,8 @@
     "react-loader-spinner": "^6.1.6",
     "react-loading": "^2.0.3",
     "react-placeholder-loading": "^0.5.30",
-    "react-toastify": "^11.0.5"
+    "react-toastify": "^11.0.5",
+    "use-debounce": "^10.0.4"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.0.0",
