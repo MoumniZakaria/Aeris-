@@ -1,0 +1,52 @@
+[
+    {
+      "city": "New York",
+      "country": "USA",
+      "coordinates": { "lat": 40.7128, "lon": -74.0060 },
+      "temperature_celsius": 23.5,
+      "humidity_percent": 65,
+      "wind_speed_kmh": 15.2,
+      "weather_condition": "Partly Cloudy",
+      "last_updated": "2023-10-05T14:00:00Z"
+    },
+    {
+      "city": "Tokyo",
+      "country": "Japan",
+      "coordinates": { "lat": 35.6762, "lon": 139.6503 },
+      "temperature_celsius": 28.0,
+      "humidity_percent": 70,
+      "wind_speed_kmh": 10.8,
+      "weather_condition": "Sunny",
+      "last_updated": "2023-10-05T14:00:00Z"
+    },
+    {
+      "city": "London",
+      "country": "UK",
+      "coordinates": { "lat": 51.5074, "lon": -0.1278 },
+      "temperature_celsius": 16.0,
+      "humidity_percent": 82,
+      "wind_speed_kmh": 8.5,
+      "weather_condition": "Rainy",
+      "last_updated": "2023-10-05T14:00:00Z"
+    },
+    {
+      "city": "Sydney",
+      "country": "Australia",
+      "coordinates": { "lat": -33.8688, "lon": 151.2093 },
+      "temperature_celsius": 19.5,
+      "humidity_percent": 55,
+      "wind_speed_kmh": 20.1,
+      "weather_condition": "Windy",
+      "last_updated": "2023-10-05T14:00:00Z"
+    },
+    {
+      "city": "Cairo",
+      "country": "Egypt",
+      "coordinates": { "lat": 30.0444, "lon": 31.2357 },
+      "temperature_celsius": 34.0,
+      "humidity_percent": 25,
+      "wind_speed_kmh": 12.3,
+      "weather_condition": "Sunny",
+      "last_updated": "2023-10-05T14:00:00Z"
+    }
+  ]
