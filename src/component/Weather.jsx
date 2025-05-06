@@ -6,7 +6,7 @@ import { WiSunrise, WiSunset } from 'react-icons/wi';
 const GEOCODING_API = 'https://geocoding-api.open-meteo.com/v1/search';
 const WEATHER_API = 'https://api.open-meteo.com/v1/forecast';
 
-const WeatherApp = () => {
+const WeatherApp = ({ onWeatherUpdate, onDarkModeToggle }) => {
   const [darkMode, setDarkMode] = useState(() => 
     window.matchMedia('(prefers-color-scheme: dark)').matches
   );
@@ -15,6 +15,13 @@ const WeatherApp = () => {
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [unit, setUnit] = useState('celsius'); // celsius or fahrenheit
+
+  // Pass dark mode changes to parent
+  useEffect(() => {
+    if (onDarkModeToggle) {
+      onDarkModeToggle(darkMode);
+    }
+  }, [darkMode, onDarkModeToggle]);
 
   // Search for cities as user types
   useEffect(() => {
@@ -46,10 +53,20 @@ const WeatherApp = () => {
       );
       
       const data = await response.json();
-      setWeather({
+      
+      const weatherData = {
         ...data,
-        cityName
-      });
+        cityName,
+        latitude: lat,
+        longitude: lon
+      };
+      
+      setWeather(weatherData);
+      
+      // Pass weather data to parent component
+      if (onWeatherUpdate) {
+        onWeatherUpdate(weatherData);
+      }
       
       // Save to recent searches
       const recentSearches = JSON.parse(localStorage.getItem('recentSearches') || '[]');
@@ -68,7 +85,7 @@ const WeatherApp = () => {
     } finally {
       setLoading(false);
     }
-  }, [unit]);
+  }, [unit, onWeatherUpdate]);
 
   const handleSelectCity = (city) => {
     setInput(city.name);
@@ -99,7 +116,21 @@ const WeatherApp = () => {
     if (code <= 29) return '🌧️'; // Rain
     if (code <= 39) return '❄️'; // Snow
     if (code <= 49) return '🌫️'; // Fog
-    if (code <= 59) return '🌧️'; // Drizzle
+    if (code <= 59) return '🌧️'; // Drizzle// Improved useEffect for search with proper cancellation and error handling
+
+    setInput(city.name);
+    
+    // Improved handleSelectCity with error feedback
+    const handleSelectCity = (city) => {
+      // Validate city object has the required properties
+      if (!city || !city.latitude || !city.longitude || !city.name) {
+        console.error('Invalid city data:', city);
+        return;
+      }
+      
+      setInput(city.name);
+      fetchWeather(city.latitude, city.longitude, city.name);
+    };
     if (code <= 69) return '🌧️'; // Rain
     if (code <= 79) return '❄️'; // Snow
     if (code <= 99) return '⛈️'; // Thunderstorm
@@ -114,22 +145,20 @@ const WeatherApp = () => {
   };
 
   return (
-    <div className={`min-h-screen transition-colors duration-300 ${
-      darkMode ? 'bg-gray-900 text-white' : 'bg-gradient-to-br from-blue-50 to-indigo-100 text-gray-800'
-    }`}>
-      <div className="max-w-3xl mx-auto p-4 gap-6">
+    <div className={`transition-colors duration-300 h-full`}>
+      <div className="h-full">
         {/* Header */}
-        <header className="flex justify-between items-center mb-12">
-          <h1 className="text-2xl font-bold">Weather Forecast</h1>
+        <header className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-bold">Weather Forecast</h2>
           <div className="flex items-center gap-3">
-            <button 
+            {/* <button 
               onClick={() => setUnit(unit === 'celsius' ? 'fahrenheit' : 'celsius')}
               className={`text-sm px-3 py-1 rounded-lg ${
                 darkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white/70 hover:bg-white'
               }`}
             >
               {unit === 'celsius' ? '°C' : '°F'}
-            </button>
+            </button> */}
             <button 
               onClick={() => setDarkMode(!darkMode)}
               className={`p-2 rounded-full ${
@@ -142,7 +171,7 @@ const WeatherApp = () => {
         </header>
 
         {/* Search form */}
-        <form onSubmit={handleSubmit} className="relative mb-16 ">
+        <form onSubmit={handleSubmit} className="relative mb-6">
           <div className="flex gap-2">
             <div className="relative flex-1">
               <input
@@ -170,7 +199,7 @@ const WeatherApp = () => {
             <div className={`absolute z-10 mt-1 w-[89%] rounded-xl shadow-lg ${
               darkMode ? 'bg-gray-800' : 'bg-white'
             }`}>
-              <ul>
+              {/* <ul>
                 {suggestions.map((city) => (
                   <li 
                     key={`${city.id}-${city.name}`}
@@ -186,7 +215,7 @@ const WeatherApp = () => {
                     </span>
                   </li>
                 ))}
-              </ul>
+              </ul> */}
             </div>
           )}
         </form>
@@ -230,7 +259,7 @@ const WeatherApp = () => {
               </div>
 
               {/* Weather stats grid */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <WeatherCard
                   icon={<FiThermometer size={18} />}
                   title="Temperature"
@@ -253,18 +282,6 @@ const WeatherApp = () => {
                   icon={<FiCompass size={18} />}
                   title="Precipitation"
                   value={`${weather.current.precipitation} mm`}
-                  darkMode={darkMode}
-                />
-                <WeatherCard
-                  icon={<WiSunrise size={24} />}
-                  title="Sunrise"
-                  value={formatTime(weather.daily.sunrise[0])}
-                  darkMode={darkMode}
-                />
-                <WeatherCard
-                  icon={<WiSunset size={24} />}
-                  title="Sunset"
-                  value={formatTime(weather.daily.sunset[0])}
                   darkMode={darkMode}
                 />
               </div>
@@ -298,16 +315,13 @@ const WeatherApp = () => {
           </div>
         )}
 
-        {/* Recent searches */}
+        {/* Initial state */}
         {!loading && !weather && (
-          <div className={`mt-6 p-6 rounded-xl ${darkMode ? 'bg-gray-800/70' : 'bg-white/70'}`}>
+          <div className={`mt-20 p-6 rounded-xl ${darkMode ? 'bg-gray-800/70' : 'bg-white/70'} `}>
             <h3 className="font-semibold mb-3">Try searching for a city to get started</h3>
             <p className="text-sm opacity-70">Example: London, Tokyo, New York, Rabat, Paris</p>
           </div>
         )}
-
-        
-       
       </div>
     </div>
   );
