@@ -26,7 +26,7 @@ const WeatherApp = ({ onWeatherUpdate, onDarkModeToggle }) => {
   // Search for cities as user types
   useEffect(() => {
     // Don't search if input is too short
-    if (input.trim().length < 2) {
+    if (input.trim().length < 2 || weather != null) {
       setSuggestions([]);
       return;
     }
@@ -60,7 +60,7 @@ const WeatherApp = ({ onWeatherUpdate, onDarkModeToggle }) => {
       clearTimeout(searchTimer);
       controller.abort();
     };
-  }, [input]);
+  }, [input, weather]);
 
   const fetchWeather = useCallback(async (lat, lon, cityName) => {
     if (!lat || !lon || !cityName) {
