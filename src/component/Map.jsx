@@ -3,7 +3,7 @@ import { FiMapPin } from 'react-icons/fi';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-// Fix Leaflet marker icons (required for React)
+// Fix Leaflet marker icons using locally imported icon
 const DefaultIcon = L.icon({
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
@@ -12,42 +12,55 @@ const DefaultIcon = L.icon({
   iconAnchor: [12, 41],
 });
 
+L.Marker.prototype.options.icon = DefaultIcon;
+
 const Map = ({ latitude, longitude, darkMode, weather }) => {
   const mapRef = useRef(null);
-  const map = useRef(null);
-  const marker = useRef(null);
+  const mapInstance = useRef(null);
+  const markerRef = useRef(null);
 
   useEffect(() => {
+    // Only initialize map if coordinates exist and container is ready
     if (!latitude || !longitude || !mapRef.current) return;
 
-    if (!map.current) {
-      map.current = L.map(mapRef.current).setView([latitude, longitude], 12);
+    // Create map if it doesn't exist
+    if (!mapInstance.current) {
+      mapInstance.current = L.map(mapRef.current).setView([latitude, longitude], 12);
+      
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap',
-      }).addTo(map.current);
+      }).addTo(mapInstance.current);
+    } else {
+      // Update view if map already exists
+      mapInstance.current.setView([latitude, longitude], 12);
     }
 
-    // Update marker
-    if (marker.current) marker.current.setLatLng([latitude, longitude]);
-    else {
-      marker.current = L.marker([latitude, longitude], { icon: DefaultIcon })
-        .addTo(map.current);
+    // Update or create marker
+    if (markerRef.current) {
+      markerRef.current.setLatLng([latitude, longitude]);
+    } else {
+      markerRef.current = L.marker([latitude, longitude], { icon: DefaultIcon })
+        .addTo(mapInstance.current);
     }
 
-    // Add weather popup
-    if (weather) {
-      marker.current.bindPopup(`
+    // Add weather popup if weather data exists
+    if (weather && markerRef.current) {
+      markerRef.current.bindPopup(`
         <div class="${darkMode ? 'bg-gray-800 text-white' : 'bg-white'} p-2">
           ${weather.cityName}: ${Math.round(weather.current.temperature_2m)}°
         </div>
-      `);
+      `).openPopup();
     }
 
+    // Clean up map when component unmounts
     return () => {
-      if (map.current) map.current.remove();
+      if (mapInstance.current) {
+        mapInstance.current.remove();
+        mapInstance.current = null;
+        markerRef.current = null;
+      }
     };
   }, [latitude, longitude, darkMode, weather]);
-
 
   return (
     <div className={`rounded-2xl overflow-hidden h-full ${

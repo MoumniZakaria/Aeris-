@@ -44,6 +44,7 @@ const Footer = ({ darkMode }) => {
           <p className="text-xs opacity-75 mt-2">
             © {new Date().getFullYear()} Aeris. All rights reserved.
           </p>
+          <p className="text-xs opacity-75">Zmoumni, 1337 Kh</p>
         </div>
       </div>
     </div>

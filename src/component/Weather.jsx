@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { FiSearch, FiSun, FiMoon, FiThermometer, FiDroplet, FiWind, FiCompass } from 'react-icons/fi';
-import { WiSunrise, WiSunset } from 'react-icons/wi';
 
 // Free weather API from OpenMeteo
 const GEOCODING_API = 'https://geocoding-api.open-meteo.com/v1/search';
@@ -15,6 +14,7 @@ const WeatherApp = ({ onWeatherUpdate, onDarkModeToggle }) => {
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [unit, setUnit] = useState('celsius'); // celsius or fahrenheit
+  const [show, SetShow] = useState(0);
 
   // Pass dark mode changes to parent
   useEffect(() => {
@@ -25,25 +25,49 @@ const WeatherApp = ({ onWeatherUpdate, onDarkModeToggle }) => {
 
   // Search for cities as user types
   useEffect(() => {
+    // Don't search if input is too short
+    if (input.trim().length < 2) {
+      setSuggestions([]);
+      return;
+    }
+
+    // Set up cancellation for fetch requests
+    const controller = new AbortController();
+    const signal = controller.signal;
+    
     const searchTimer = setTimeout(async () => {
-      if (input.trim().length < 2) {
-        setSuggestions([]);
-        return;
-      }
-      
       try {
-        const response = await fetch(`${GEOCODING_API}?name=${encodeURIComponent(input)}&count=5`);
+        const response = await fetch(
+          `${GEOCODING_API}?name=${encodeURIComponent(input)}&count=5`, 
+          { signal }
+        );
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        
         const data = await response.json();
         setSuggestions(data.results || []);
       } catch (err) {
-        console.error('Error fetching city suggestions:', err);
+        if (err.name !== 'AbortError') {
+          console.error('Error fetching city suggestions:', err);
+          setSuggestions([]);
+        }
       }
     }, 300);
     
-    return () => clearTimeout(searchTimer);
+    return () => {
+      clearTimeout(searchTimer);
+      controller.abort();
+    };
   }, [input]);
 
   const fetchWeather = useCallback(async (lat, lon, cityName) => {
+    if (!lat || !lon || !cityName) {
+      console.error('Missing required parameters for weather fetch');
+      return;
+    }
+    
     setLoading(true);
     setSuggestions([]);
     
@@ -51,6 +75,10 @@ const WeatherApp = ({ onWeatherUpdate, onDarkModeToggle }) => {
       const response = await fetch(
         `${WEATHER_API}?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_direction_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset&timezone=auto&temperature_unit=${unit}`
       );
+      
+      if (!response.ok) {
+        throw new Error(`Weather API error! Status: ${response.status}`);
+      }
       
       const data = await response.json();
       
@@ -69,15 +97,19 @@ const WeatherApp = ({ onWeatherUpdate, onDarkModeToggle }) => {
       }
       
       // Save to recent searches
-      const recentSearches = JSON.parse(localStorage.getItem('recentSearches') || '[]');
-      const newSearch = { lat, lon, name: cityName };
-      
-      // Only add if not already in list
-      if (!recentSearches.some(city => city.name === cityName)) {
-        localStorage.setItem(
-          'recentSearches', 
-          JSON.stringify([newSearch, ...recentSearches].slice(0, 5))
-        );
+      try {
+        const recentSearches = JSON.parse(localStorage.getItem('recentSearches') || '[]');
+        const newSearch = { lat, lon, name: cityName };
+        
+        // Only add if not already in list
+        if (!recentSearches.some(city => city.name === cityName)) {
+          localStorage.setItem(
+            'recentSearches', 
+            JSON.stringify([newSearch, ...recentSearches].slice(0, 5))
+          );
+        }
+      } catch (storageError) {
+        console.error('Error saving to local storage:', storageError);
       }
       
     } catch (err) {
@@ -88,6 +120,12 @@ const WeatherApp = ({ onWeatherUpdate, onDarkModeToggle }) => {
   }, [unit, onWeatherUpdate]);
 
   const handleSelectCity = (city) => {
+    // Validate city data
+    if (!city || !city.latitude || !city.longitude || !city.name) {
+      console.error('Invalid city data:', city);
+      return;
+    }
+    
     setInput(city.name);
     fetchWeather(city.latitude, city.longitude, city.name);
   };
@@ -100,12 +138,6 @@ const WeatherApp = ({ onWeatherUpdate, onDarkModeToggle }) => {
     }
   };
 
-  // Format time (for sunrise/sunset)
-  const formatTime = (timeString) => {
-    const date = new Date(timeString);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
   // Get weather condition icon
   const getWeatherIcon = (code) => {
     // Convert WMO code to icon
@@ -116,21 +148,7 @@ const WeatherApp = ({ onWeatherUpdate, onDarkModeToggle }) => {
     if (code <= 29) return '🌧️'; // Rain
     if (code <= 39) return '❄️'; // Snow
     if (code <= 49) return '🌫️'; // Fog
-    if (code <= 59) return '🌧️'; // Drizzle// Improved useEffect for search with proper cancellation and error handling
-
-    setInput(city.name);
-    
-    // Improved handleSelectCity with error feedback
-    const handleSelectCity = (city) => {
-      // Validate city object has the required properties
-      if (!city || !city.latitude || !city.longitude || !city.name) {
-        console.error('Invalid city data:', city);
-        return;
-      }
-      
-      setInput(city.name);
-      fetchWeather(city.latitude, city.longitude, city.name);
-    };
+    if (code <= 59) return '🌧️'; // Drizzle
     if (code <= 69) return '🌧️'; // Rain
     if (code <= 79) return '❄️'; // Snow
     if (code <= 99) return '⛈️'; // Thunderstorm
@@ -145,7 +163,7 @@ const WeatherApp = ({ onWeatherUpdate, onDarkModeToggle }) => {
   };
 
   return (
-    <div className={`transition-colors duration-300 h-full`}>
+    <div className="transition-colors duration-300 h-full">
       <div className="h-full">
         {/* Header */}
         <header className="flex justify-between items-center mb-6">
@@ -193,29 +211,28 @@ const WeatherApp = ({ onWeatherUpdate, onDarkModeToggle }) => {
               Search
             </button>
           </div>
-          
           {/* City suggestions */}
           {suggestions.length > 0 && (
             <div className={`absolute z-10 mt-1 w-[89%] rounded-xl shadow-lg ${
               darkMode ? 'bg-gray-800' : 'bg-white'
             }`}>
-              {/* <ul>
+              <ul className={`display:${show}`}>
                 {suggestions.map((city) => (
                   <li 
-                    key={`${city.id}-${city.name}`}
+                    key={`${city.id || city.name}-${city.name}`}
                     onClick={() => handleSelectCity(city)}
-                    className={`p-3 cursor-pointer flex items-center gap-2 rounded-sm ${
+                    className={`p-3 cursor-pointer flex items-center gap-2 ${
                       darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
                     }`}
                   >
                     <span className="font-medium">{city.name}</span>
-                    <span className="text-sm opacity-70 ">
+                    <span className="text-sm opacity-70">
                       {city.country}
                       {city.admin1 && `, ${city.admin1}`}
                     </span>
                   </li>
                 ))}
-              </ul> */}
+              </ul>
             </div>
           )}
         </form>
