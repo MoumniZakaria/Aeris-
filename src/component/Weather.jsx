@@ -75,7 +75,6 @@ const WeatherApp = ({ onWeatherUpdate, onDarkModeToggle }) => {
       const response = await fetch(
         `${WEATHER_API}?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_direction_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset&timezone=auto&temperature_unit=${unit}`
       );
-      
       if (!response.ok) {
         throw new Error(`Weather API error! Status: ${response.status}`);
       }
